@@ -1,0 +1,17 @@
+{
+  "name": "data-unifier-server",
+  "version": "1.0.0",
+  "description": "Data collector and unifier for finance analysis",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Salvador ALexis Gomez & Eduardo Valencia",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.16.3",
+    "mongoose": "^5.0.15",
+    "morgan": "^1.9.0",
+    "request": "^2.85.0"
+  }
+}
