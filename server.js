@@ -15,7 +15,7 @@ module.exports = {
 	mongoose,
 };
 let server = app.listen(port,() => console.log('Server started on port: ',port))
-server.timeout = 2000;
+server.timeout = 20000;
 
 const { DailyData } = require('./models/DailyData.js');
 const { Predictions } = require ('./models/Predictions.js');
@@ -37,28 +37,32 @@ app.get('/api/update',(req,res)=>{
 	let results = {};
 	let queries = [];
 	let date = new Date();
-	date = new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),date.getDate()-1,0,0,0));
+	date = new Date(Date.UTC(date.getUTCFullYear(),date.getUTCMonth(),date.getDate()-0,0,0,0));
+	let dateMonth= String((date.getUTCMonth()+1));
+	dateMonth=dateMonth.padStart(2,'0');
+	let dateDay= String(date.getUTCDate());
+	dateDay=dateDay.padStart(2,'0');
+	let dateString = `${date.getUTCFullYear()}-${dateMonth}-${dateDay}`;
 	results.date = date;
 	queries = companies.map(c =>{
 		return axios.get(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${c}.MX&apikey=U2J8P24V94V4NGDE`);
 	});
-
 	Promise.all(queries).then(d=>{
 		d.forEach(i=>{
 			let quer = i.data;
-			let data= quer['Time Series (Daily)'][`${date.getUTCFullYear()}-${date.getUTCMonth()+1}-${date.getUTCDay()}`];
-			results[quer['Meta Data']['2. Symbol'].split('.')[0]] = data?['5. AdjustedClose']:null;
+			let data= quer['Time Series (Daily)'][dateString];
+			results[quer['Meta Data']['2. Symbol'].split('.')[0]] = data?data['5. adjusted close']:null;
 		});
 		return axios.get('https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=^MXX&apikey=U2J8P24V94V4NGDE')
 	}).then(i=>{
 		let quer = i.data;
-		let data= quer['Time Series (Daily)'][`${date.getUTCFullYear()}-${date.getUTCMonth()+1}-${date.getUTCDay()}`];
-		results.IPC = data?['5. AdjustedClose']:null;
+		let data= quer['Time Series (Daily)'][dateString];
+		results.IPC = data?data['5. adjusted close']:null;
 		return axios.get('https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=USDMXN=X&apikey=U2J8P24V94V4NGDE');
 	}).then(i=>{
 		let quer = i.data;
-		let data= quer['Time Series (Daily)'][`${date.getUTCFullYear()}-${date.getUTCMonth()+1}-${date.getUTCDay()}`];
-		results.USDMXN = data?['5. AdjustedClose']:null;
+		let data= quer['Time Series (Daily)'][dateString];
+		results.USDMXN = data?data['5. adjusted close']:null;
 		return axios.get(`https://www.quandl.com/api/v3/datasets/OPEC/ORB.json?api_key=2KXtZBj4qLfGoFsNQ7zB&start_date=${date.getUTCFullYear()}-${date.getUTCMonth()+1}-${date.getUTCDate()}`);
 	}).then(i=>{
 		let quer =i.data.dataset.data;
@@ -73,15 +77,18 @@ app.get('/api/update',(req,res)=>{
 			const keys = ['IPC','oil','gold','INPC','PIB','TIIE','infl','des','AC','ALFAA','ALSEA',
 			'AMXL','BIMBOA','FEMSAUBD','KOFL','LIVEPOLC-1','TLEVISACPO','WALMEX','USDMXN'];
 			keys.forEach(k=>{
-				results[k] = results[k]===null||results[k]===undefined?od[0][k]:results[k];
+				results[k] = results[k]===null||results[k]===undefined?od[0][k]:Number(results[k]);
 			});
 			let saving = new DailyData(results);
-			return saving.save();
+			saving.save().then(()=>{
+				res.json(results);
+			});
+		}else{
+			res.sendStatus(204);
 		}
-		return new Promise();
-	}).then(()=>{
-		res.json(results);
-	}).catch(err=>res.json(err))
+	}).catch(err=>{
+		res.json(err)
+	})
 });
 app.get('/api/fill2',(req,res) => {
 	const keys = ['IPC','oil','gold','INPC','PIB','TIIE','infl','des','AC','ALFAA','ALSEA',
@@ -204,4 +211,10 @@ Date.prototype.addDays = function(days) {
 	var date = new Date(this.valueOf());
 	date.setUTCDate(date.getUTCDate() + days);
 	return date;
+}
+
+const getPreds = () =>{
+	return new Promise((resolve, reject)=>{
+		
+	});
 }
